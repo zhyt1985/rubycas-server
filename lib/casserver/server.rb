@@ -301,6 +301,7 @@ module CASServer
       headers['Pragma'] = 'no-cache'
       headers['Cache-Control'] = 'no-store'
       headers['Expires'] = (Time.now - 1.year).rfc2822
+      headers['X-Frame-Options'] = "ALLOW-FROM #{config[:client_url]}"
 
       # optional params
       @service = clean_service_url(params['service'])
@@ -371,7 +372,7 @@ module CASServer
       # action for the form, otherwise the server will try to guess this for you.
       if params.has_key? 'onlyLoginForm'
         if @env['HTTP_HOST']
-          guessed_login_uri = "http#{@env['HTTPS'] && @env['HTTPS'] == 'on' ? 's' : ''}://#{@env['REQUEST_URI']}#{self / '/login'}"
+          guessed_login_uri = "http#{@env['HTTPS'] && @env['HTTPS'] == 'on' ? 's' : ''}://#{@env['REQUEST_URI']}#{self || '/login'}"
         else
           guessed_login_uri = nil
         end
@@ -379,7 +380,7 @@ module CASServer
         @form_action = params['submitToURI'] || guessed_login_uri
 
         if @form_action
-          render :login_form
+          render :erb, :login_form
         else
           status 500
           render t.error.invalid_submit_to_uri
@@ -415,7 +416,12 @@ module CASServer
         # generate another login ticket to allow for re-submitting the form
         @lt = generate_login_ticket.ticket
         status 500
-        return render @template_engine, :login
+        if @service.blank?
+          content_type :json
+          return @message.to_json
+        else
+          return render @template_engine, :login
+        end
       end
 
       # generate another login ticket to allow for re-submitting the form after a post
@@ -466,6 +472,8 @@ module CASServer
           if @service.blank?
             $LOG.info("Successfully authenticated user '#{@username}' at '#{tgt.client_hostname}'. No service param was given, so we will not redirect.")
             @message = {:type => 'confirmation', :message => t.notice.success_logged_in}
+            content_type :json
+            return @message.to_json
           else
             @st = generate_service_ticket(@service, @username, tgt)
 
@@ -486,6 +494,10 @@ module CASServer
           $LOG.warn("Invalid credentials given for user '#{@username}'")
           @message = {:type => 'mistake', :message => t.error.incorrect_username_or_password}
           status 401
+          if @service.blank?
+            content_type :json
+            return @message.to_json
+          end
         end
       rescue CASServer::AuthenticatorError => e
         $LOG.error(e)
@@ -493,6 +505,10 @@ module CASServer
         @lt = generate_login_ticket.ticket
         @message = {:type => 'mistake', :message => e.to_s}
         status 401
+        if @service.blank?
+          content_type :json
+          return @message.to_json
+        end
       end
 
       render @template_engine, :login

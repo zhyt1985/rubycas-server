@@ -18,6 +18,7 @@
 # The following are example configurations for each of these three methods:
 #
 
+client_url: http://localhost:3000
 
 ###
 ### WEBrick example

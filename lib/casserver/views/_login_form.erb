@@ -40,3 +40,25 @@
     </tr>
   </table>
 </form>
+<script src="/jquery-1.11.2.js"></script>
+<script src="/jquery.form.js"></script>
+<script>
+  var client_url = '<%= config[:client_url] %>';
+    window.addEventListener('message', function(event){
+        if (event.origin.indexOf(client_url)>-1) {
+            document.getElementById('username').value = event.data["login"];
+            document.getElementById('password').value = event.data["password"];
+
+            $('#login-form').ajaxForm({
+                dataType: 'json',
+                success: function(result){
+                    parent.postMessage(result, client_url);
+                },
+                error: function(result){
+                    parent.postMessage(result.responseJSON, client_url);
+                    window.location.reload();
+                }
+            }).submit();
+        }
+    }, false);
+</script>

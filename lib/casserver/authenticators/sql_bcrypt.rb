@@ -10,7 +10,22 @@ class CASServer::Authenticators::SQLBcrypt < CASServer::Authenticators::SQL
   protected
 
   def matching_users
-    results = user_model.find(:all, :conditions => ["#{username_column} = ?", @username])
+    if username_column.include?(',')
+      columns = username_column.split(',')
+      sql = ''
+      conditions = []
+      columns.each do |field|
+        if sql.length != 0
+          sql += ' or '
+        end
+        sql += "#{field} = ?"
+        conditions << @username
+      end
+      conditions.unshift(sql)
+    else
+      conditions = ["#{username_column} = ?", @username]
+    end
+    results = user_model.find(:all, :conditions => conditions)
     results.select { |user| BCrypt::Password.new(user.send(password_column.to_sym)) == @password }
   end
 

@@ -10,3 +10,5 @@ end
 group :active_resource do
   gem "activeresource", ">= 2.3.12", "< 4.0"
 end
+gem "mysql2"
+gem "bcrypt-ruby"
